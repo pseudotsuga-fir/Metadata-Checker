@@ -11,6 +11,20 @@ A Python script that scrapes metadata from pages listed in a sitemap XML file.
 - Respectful scraping with configurable delays
 - Handles various sitemap formats and namespaces
 
+## Setup
+
+1. Create python venv
+
+```bash
+python3 -m venv venv
+```
+
+2. Activate venv
+
+```bash
+source venv/bin/activate
+```
+
 ## Installation
 
 1. Install the required dependencies:

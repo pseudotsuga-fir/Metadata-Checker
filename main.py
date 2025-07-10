@@ -14,6 +14,9 @@ from bs4 import BeautifulSoup
 import time
 import sys
 from typing import List, Dict, Optional
+from datetime import datetime
+import re
+import os
 
 
 def parse_sitemap(sitemap_url: str) -> List[str]:
@@ -196,6 +199,38 @@ def format_output(metadata: Dict[str, str]) -> str:
     return output
 
 
+def generate_filename(sitemap_url: str) -> str:
+    """
+    Generate filename with domain and timestamp.
+    
+    Args:
+        sitemap_url: URL to extract domain from
+        
+    Returns:
+        Generated filename with output folder path
+    """
+    try:
+        # Extract domain from sitemap URL
+        parsed_url = urlparse(sitemap_url)
+        domain = parsed_url.netloc
+        
+        # Clean domain name (remove www. if present)
+        domain = re.sub(r'^www\.', '', domain)
+        
+        # Replace dots and other special characters with underscores
+        domain = re.sub(r'[^\w\-]', '_', domain)
+        
+        # Generate timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        return f"output/{domain}_metadata_check_{timestamp}.txt"
+        
+    except Exception:
+        # Fallback if domain extraction fails
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        return f"output/metadata_check_{timestamp}.txt"
+
+
 def main():
     """Main function to run the metadata scraper."""
     parser = argparse.ArgumentParser(
@@ -213,8 +248,7 @@ def main():
     parser.add_argument(
         '--output',
         '-o',
-        default='metadata_output.txt',
-        help='Output file name (default: metadata_output.txt)'
+        help='Output file name (default: auto-generated with domain and timestamp)'
     )
     parser.add_argument(
         '--delay',
@@ -225,6 +259,12 @@ def main():
     )
     
     args = parser.parse_args()
+    
+    # Generate filename if not provided
+    if args.output:
+        output_filename = args.output
+    else:
+        output_filename = generate_filename(args.sitemap_url)
     
     print(f"Fetching sitemap from: {args.sitemap_url}")
     urls = parse_sitemap(args.sitemap_url)
@@ -239,26 +279,37 @@ def main():
     urls_to_scrape = urls[:args.page_count]
     
     print(f"Scraping {len(urls_to_scrape)} pages...")
+    print(f"Output will be saved to: {output_filename}")
     
-    results = []
+    # Create output directory if it doesn't exist
+    output_dir = os.path.dirname(output_filename)
+    if output_dir and not os.path.exists(output_dir):
+        os.makedirs(output_dir)
     
-    for i, url in enumerate(urls_to_scrape, 1):
-        print(f"Scraping {i}/{len(urls_to_scrape)}: {url}")
-        
-        metadata = extract_metadata(url)
-        formatted_output = format_output(metadata)
-        results.append(formatted_output)
-        
-        # Add delay between requests to be respectful
-        if i < len(urls_to_scrape):
-            time.sleep(args.delay)
+    # Open file for writing and write in real-time
+    with open(output_filename, 'w', encoding='utf-8') as f:
+        for i, url in enumerate(urls_to_scrape, 1):
+            print(f"Scraping {i}/{len(urls_to_scrape)}: {url}")
+            
+            metadata = extract_metadata(url)
+            formatted_output = format_output(metadata)
+            
+            # Write to file immediately
+            f.write(formatted_output)
+            
+            # Add separator line between pages (except for the last page)
+            if i < len(urls_to_scrape):
+                f.write('\n\n')
+            
+            # Flush to ensure data is written immediately
+            f.flush()
+            
+            # Add delay between requests to be respectful
+            if i < len(urls_to_scrape):
+                time.sleep(args.delay)
     
-    # Write results to file
-    with open(args.output, 'w', encoding='utf-8') as f:
-        f.write('\n\n'.join(results))
-    
-    print(f"\nResults saved to: {args.output}")
-    print(f"Scraped {len(results)} pages successfully")
+    print(f"\nResults saved to: {output_filename}")
+    print(f"Scraped {len(urls_to_scrape)} pages successfully")
 
 
 if __name__ == "__main__":
