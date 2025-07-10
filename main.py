@@ -188,6 +188,10 @@ def format_output(metadata: Dict[str, str]) -> str:
     # Check if canonical matches
     match_status = "✓" if check_canonical_match(url, canonical) else "FAIL"
     
+    # Print warning to console if canonical doesn't match
+    if not check_canonical_match(url, canonical):
+        print(f"!!! CANONICAL DID NOT MATCH - {url}")
+    
     # Format output
     output = f"{url}\n"
     output += "=" * len(url) + "\n"
